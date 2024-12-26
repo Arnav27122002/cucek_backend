@@ -8,11 +8,8 @@ class Teacher(models.Model):
     experience = models.PositiveIntegerField(verbose_name="Years of Experience")
     branch = models.CharField(max_length=255,default='General', verbose_name="Branch Name")
     projects = models.TextField(verbose_name="Projects", blank=True)
-    others = models.TextField(verbose_name="Other Achievements", blank=True)
-    conferences = models.TextField(verbose_name="Conferences Attended", blank=True)
-    journals = models.TextField(verbose_name="Journals Published", blank=True)
     image = models.ImageField(upload_to='teachers_images/', blank=True, null=True)
-
+    path = models.CharField(max_length=255, verbose_name="Path")
     def __str__(self):
         return self.name
 class Research(models.Model):
