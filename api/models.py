@@ -9,7 +9,7 @@ class Teacher(models.Model):
     branch = models.CharField(max_length=255,default='General', verbose_name="Branch Name")
     projects = models.TextField(verbose_name="Projects", blank=True)
     image = models.ImageField(upload_to='teachers_images/', blank=True, null=True)
-    path = models.CharField(max_length=255, verbose_name="Path")
+    path = models.CharField(max_length=255, verbose_name="Path",default='\home')
     def __str__(self):
         return self.name
 class Research(models.Model):
