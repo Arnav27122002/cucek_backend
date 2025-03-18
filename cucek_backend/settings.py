@@ -30,6 +30,7 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
+AUTH_USER_MODEL = "auth.User"  
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework_simplejwt.token_blacklist', 
     'api',
     'rest_framework',
     "corsheaders",
@@ -64,7 +66,10 @@ MIDDLEWARE = [
  ]
 
 ROOT_URLCONF = 'cucek_backend.urls'
-
+AUTHENTICATION_BACKENDS = [
+    'cucek_backend.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',  
+]
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
