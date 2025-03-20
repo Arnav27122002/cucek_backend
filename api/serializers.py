@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Teacher, Research
+from .models import Teacher, Research, Class, Exam, MarkList
 
 User = get_user_model()
 
@@ -46,4 +46,19 @@ class TeacherSerializer(serializers.ModelSerializer):
 class ResearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Research
+        fields = '__all__'
+
+class ClassSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Class
+        fields = '__all__'
+
+class ExamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Exam
+        fields = '__all__'
+
+class MarkListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MarkList
         fields = '__all__'
