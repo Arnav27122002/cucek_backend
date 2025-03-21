@@ -6,12 +6,13 @@ from .views import (
     ResearchViewSet,
     RegisterView,
     LoginView,
-    LogoutView
+    LogoutView, TeacherClassViewSet
 )
 
 router = DefaultRouter()
 router.register(r'teachers', TeacherViewSet)
 router.register(r'research', ResearchViewSet)
+router.register(r'teacher-classes', TeacherClassViewSet, basename='teacher-class')
 
 urlpatterns = [
     path('', include(router.urls)),
