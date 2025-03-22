@@ -144,3 +144,27 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Media files configuration
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'x-csrftoken',
+    'Authorization',
+    'Referrer-Policy',  # If you are using this header
+]
+
+# This will handle OPTIONS requests, which are pre-flight requests
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'DELETE',
+    'OPTIONS',
+]
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+]
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1)
+}
