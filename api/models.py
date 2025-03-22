@@ -28,33 +28,40 @@ class Research(models.Model):
         return self.name
 
 
+
+# Role choices for user type (student or teacher)
+class UserRole(models.TextChoices):
+    STUDENT = 'Student'
+    TEACHER = 'Teacher'
+
+# Class model
+
 class Class(models.Model):
+    # Explicitly defining the `id` field
+    id = models.AutoField(primary_key=True)  # Automatically an integer, auto-incrementing field
+    
     name = models.CharField(max_length=100)
     description = models.TextField()
+    # students = models.ManyToManyField(User, related_name='classes_as_student', through='ClassEnrollment')
+    teachers = models.ManyToManyField(User, related_name='classes_as_teacher', through='ClassTeaching')
 
     def __str__(self):
         return self.name
 
-class Exam(models.Model):
-    class_obj = models.ForeignKey(Class, related_name='exams', on_delete=models.CASCADE)
-    name = models.CharField(max_length=100)
-    date = models.DateField()
+# ClassEnrollment model to associate students with classes
+# class ClassEnrollment(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     class_enrolled = models.ForeignKey(Class, on_delete=models.CASCADE)
+#     role = models.CharField(max_length=10, choices=UserRole.choices, default=UserRole.STUDENT)
+
+#     def __str__(self):
+#         return f"{self.user.username} in {self.class_enrolled.name} as {self.role}"
+
+# ClassTeaching model to associate teachers with classes
+class ClassTeaching(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    class_taught = models.ForeignKey(Class, on_delete=models.CASCADE)
+    role = models.CharField(max_length=10, choices=UserRole.choices, default=UserRole.TEACHER)
 
     def __str__(self):
-        return f"{self.name} ({self.class_obj.name})"
-
-class Enrollment(models.Model):
-    student: User = models.ForeignKey(User, related_name='enrollments', on_delete=models.CASCADE)
-    class_obj = models.ForeignKey(Class, related_name='enrollments', on_delete=models.CASCADE)
-    date_enrolled = models.DateField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.student.username} in {self.class_obj.name}"
-
-class MarkList(models.Model):
-    student: User = models.ForeignKey(User, related_name='marklists', on_delete=models.CASCADE)
-    exam = models.ForeignKey(Exam, related_name='marks', on_delete=models.CASCADE)
-    marks = models.IntegerField()
-
-    def __str__(self):
-        return f"{self.student.username} - {self.exam.name}"
+        return f"{self.user.username} teaching {self.class_taught.name} as {self.role}"

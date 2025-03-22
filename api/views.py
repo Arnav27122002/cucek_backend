@@ -9,14 +9,16 @@ from .serializers import (
     TeacherSerializer,
     ResearchSerializer,
     RegisterSerializer,
-    LoginSerializer
+    LoginSerializer,
+    ClassSerializer,
+    UserSerializer
 )
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
-from .models import Teacher, Class, Exam, MarkList
-from .serializers import ClassSerializer, ExamSerializer, MarkListSerializer
+from .models import Teacher, Class, ClassTeaching, UserRole
+
 
 User = get_user_model()
 
@@ -65,44 +67,92 @@ class LogoutView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+class TeacherClassesView(APIView):
+    permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
 
-class TeacherClassViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    def get(self, request):
+        # Get the authenticated teacher (User)
+        teacher = request.user
 
-    def list(self, request):
-        teacher = get_object_or_404(Teacher, name=request.user.get_full_name())
-        classes = Class.objects.filter(teacher=teacher)
-        serializer = ClassSerializer(classes, many=True)
-        return Response(serializer.data)
+        # Get the classes the teacher is teaching using ClassTeaching model
+        classes = ClassTeaching.objects.filter(user=teacher)
+        
+        # Serialize the classes
+        class_data = [class_taught.class_taught for class_taught in classes]
+        serializer = ClassSerializer(class_data, many=True)
 
-    def create(self, request):
-        teacher = get_object_or_404(Teacher, name=request.user.get_full_name())
-        data = request.data
-        data['teacher'] = teacher.id  # Assigning the teacher
-        serializer = ClassSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+        # Create the response
+        response = Response({"classes": serializer.data})
 
-    @action(detail=True, methods=['post'])
-    def create_exam(self, request, pk=None):
+        # Add custom headers here
+        response['Referrer-Policy'] = 'strict-origin-when-cross-origin'  # Add the Referrer-Policy header
+        response['Custom-Header'] = 'Value'  # You can add other headers if needed
+
+        # Return the response with custom headers
+        return response
+    
+class ClassDetailView(APIView):
+    permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
+
+    def get(self, request, pk):
+        # Get the class object by primary key
         class_obj = get_object_or_404(Class, pk=pk)
-        data = request.data
-        data['class_obj'] = class_obj.id  # Assigning the class
-        serializer = ExamSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
 
-    @action(detail=True, methods=['post'])
-    def publish_marks(self, request, pk=None):
-        exam = get_object_or_404(Exam, pk=pk)
-        data = request.data
-        data['exam'] = exam.id  # Assigning the exam
-        serializer = MarkListSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+        # Get the teachers associated with the class
+        persons = ClassTeaching.objects.filter(class_taught=class_obj)
+        
+        teachers = []
+        students = []
+        
+        for person in persons:
+            print(person.role)
+            
+            if person.role == UserRole.TEACHER:
+                teachers.append(person.user)
+
+            if person.role == UserRole.STUDENT:
+                students.append(person.user)
+
+        # Serialize teacher and student data
+        teacher_serializer = UserSerializer(teachers, many=True)
+        student_serializer = UserSerializer(students, many=True)
+
+        # Serialize class data
+        class_serializer = ClassSerializer(class_obj)
+
+        # Return the class data with teachers and students
+        return Response({
+            'class': class_serializer.data,
+            'teachers': teacher_serializer.data,
+            'students': student_serializer.data
+        })
+
+
+
+class AddStudentToClass(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, class_id):
+        # Get the class object
+        class_obj = get_object_or_404(Class, id=class_id)
+
+        # Check if the requesting user is a teacher in this class
+        if not ClassTeaching.objects.filter(user=request.user, class_taught=class_obj, role=UserRole.TEACHER).exists():
+            return Response({"error": "You are not authorized to add students to this class."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get the student ID from request data
+        student_id = request.data.get("student_id")
+        if not student_id:
+            return Response({"error": "Student ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get the student object
+        student = get_object_or_404(User, id=student_id)
+
+        # Check if the user is already enrolled
+        if ClassTeaching.objects.filter(user=student, class_taught=class_obj).exists():
+            return Response({"error": "Student is already enrolled in this class."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Enroll the student
+        ClassTeaching.objects.create(user=student, class_taught=class_obj, role=UserRole.STUDENT)
+
+        return Response({"message": "Student added successfully to the class."}, status=status.HTTP_201_CREATED)
