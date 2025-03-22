@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
-from .models import Teacher, Research, ClassEnrollment
+from .models import Teacher, Research
 from .serializers import (
     TeacherSerializer,
     ResearchSerializer,
@@ -126,3 +126,33 @@ class ClassDetailView(APIView):
             'teachers': teacher_serializer.data,
             'students': student_serializer.data
         })
+
+
+
+class AddStudentToClass(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, class_id):
+        # Get the class object
+        class_obj = get_object_or_404(Class, id=class_id)
+
+        # Check if the requesting user is a teacher in this class
+        if not ClassTeaching.objects.filter(user=request.user, class_taught=class_obj, role=UserRole.TEACHER).exists():
+            return Response({"error": "You are not authorized to add students to this class."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get the student ID from request data
+        student_id = request.data.get("student_id")
+        if not student_id:
+            return Response({"error": "Student ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get the student object
+        student = get_object_or_404(User, id=student_id)
+
+        # Check if the user is already enrolled
+        if ClassTeaching.objects.filter(user=student, class_taught=class_obj).exists():
+            return Response({"error": "Student is already enrolled in this class."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Enroll the student
+        ClassTeaching.objects.create(user=student, class_taught=class_obj, role=UserRole.STUDENT)
+
+        return Response({"message": "Student added successfully to the class."}, status=status.HTTP_201_CREATED)

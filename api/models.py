@@ -42,20 +42,20 @@ class Class(models.Model):
     
     name = models.CharField(max_length=100)
     description = models.TextField()
-    students = models.ManyToManyField(User, related_name='classes_as_student', through='ClassEnrollment')
+    # students = models.ManyToManyField(User, related_name='classes_as_student', through='ClassEnrollment')
     teachers = models.ManyToManyField(User, related_name='classes_as_teacher', through='ClassTeaching')
 
     def __str__(self):
         return self.name
 
 # ClassEnrollment model to associate students with classes
-class ClassEnrollment(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    class_enrolled = models.ForeignKey(Class, on_delete=models.CASCADE)
-    role = models.CharField(max_length=10, choices=UserRole.choices, default=UserRole.STUDENT)
+# class ClassEnrollment(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     class_enrolled = models.ForeignKey(Class, on_delete=models.CASCADE)
+#     role = models.CharField(max_length=10, choices=UserRole.choices, default=UserRole.STUDENT)
 
-    def __str__(self):
-        return f"{self.user.username} in {self.class_enrolled.name} as {self.role}"
+#     def __str__(self):
+#         return f"{self.user.username} in {self.class_enrolled.name} as {self.role}"
 
 # ClassTeaching model to associate teachers with classes
 class ClassTeaching(models.Model):
