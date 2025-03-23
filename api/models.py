@@ -72,3 +72,47 @@ class Subject(models.Model):
     
     def __str__(self):
         return self.name
+
+
+class Exam(models.Model):
+    name = models.CharField(max_length=255, verbose_name="Exam Name")
+    description = models.TextField(verbose_name="Exam Description", blank=True)
+    
+    class_assigned = models.ForeignKey(
+        'Class',
+        related_name='exams',
+        on_delete=models.CASCADE,
+        verbose_name="Assigned Class"
+    )
+    subject = models.ForeignKey(
+        'Subject',
+        related_name='exams',
+        on_delete=models.CASCADE,
+        verbose_name="Subject"
+    )
+
+    def __str__(self):
+        return f"{self.name} ({self.subject.name})"
+
+
+
+class ExamResult(models.Model):
+    # Linking the exam result to a specific subject
+    Exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name="exam_results")
+
+    # Store the results as a JSON field
+    results = models.JSONField(blank=True, null=True, default=dict)
+
+
+    def add_student_result(self, student, marks, grade=None):
+        """Helper method to add a student result in JSON format."""
+        if self.results is None:
+            self.results = {}
+
+        self.results[str(student.id)] = {
+            "student_id": student.id,
+            "student_name": student.username,  # or any other attribute you want to store
+            "marks": marks,
+            "grade": grade
+        }
+        self.save()

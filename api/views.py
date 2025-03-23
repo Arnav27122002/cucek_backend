@@ -18,8 +18,8 @@ from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
-from .models import Teacher, Class, ClassTeaching, UserRole, Subject
-
+from .models import Teacher, Class, ClassTeaching, UserRole, Subject, Exam, ExamResult
+from django.utils.timezone import get_current_timezone
 
 User = get_user_model()
 
@@ -198,3 +198,100 @@ class AddSubjectToClass(APIView):
                 "description": subject.description
             }
         }, status=status.HTTP_201_CREATED)
+
+
+
+class CreateExamView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, class_id, subject_id):
+        # Get the class and subject objects
+        class_obj = get_object_or_404(Class, id=class_id)
+        subject_obj = get_object_or_404(Subject, id=subject_id)
+
+        # Check if the user is a teacher for the specified class
+        if not ClassTeaching.objects.filter(user=request.user, class_taught=class_obj, role=UserRole.TEACHER).exists():
+            return Response({"error": "You are not authorized to create an exam for this class."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get the exam details from the request
+        exam_name = request.data.get("name")
+        exam_description = request.data.get("description", "")
+
+        # Validate input
+        if not exam_name:
+            return Response({"error": "Exam name and date are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Parse the exam date into a datetime object
+
+        exam = Exam.objects.create(
+            name=exam_name,
+            description=exam_description,
+            class_assigned=class_obj,
+            subject=subject_obj
+        )
+
+        return Response({
+            "message": "Exam created successfully.",
+            "exam": {
+                "name": exam.name,
+                "description": exam.description,
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+
+class PublishExamResultsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, exam_id):
+        # Get the exam object
+        exam = get_object_or_404(Exam, id=exam_id)
+
+        # Check if the user is a teacher for this class
+        if not exam.class_assigned.teachers.filter(id=request.user.id).exists():
+            return Response({"error": "You are not authorized to publish results for this exam."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get the results data from the request
+        results_data = request.data.get("results")
+        if not results_data:
+            return Response({"error": "No results data provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create or update the ExamResult for this exam
+        exam_result, created = ExamResult.objects.get_or_create(Exam=exam)
+
+        # Loop through the results and add them to the ExamResult model
+        for result in results_data:
+            student_id = result.get("student_id")
+            marks = result.get("marks")
+            grade = result.get("grade", None)
+
+            # Ensure the student exists
+            student = get_object_or_404(User, id=student_id)
+
+            # Add the student result to the exam results (in JSON format)
+            exam_result.add_student_result(student, marks, grade)
+
+        return Response({"message": "Exam results published successfully!"}, status=status.HTTP_201_CREATED)
+
+
+
+class ViewExamResultsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, exam_id):
+        # Get the exam result for the provided exam ID
+        exam_result = get_object_or_404(ExamResult, Exam__id=exam_id)
+
+        # Retrieve the results from the JSONField
+        results = exam_result.results
+
+        # If there are no results, return a message indicating so
+        if not results:
+            return Response({"message": "No results published for this exam yet."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Return the results in the response
+        return Response({
+            "exam": exam_result.Exam.name,
+            "subject": exam_result.Exam.subject.name,
+            "results": results
+        }, status=status.HTTP_200_OK)
