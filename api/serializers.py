@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Teacher, Research, Class
+from .models import Teacher, Research, Class, Subject
 
 User = get_user_model()
 
@@ -52,3 +52,9 @@ class ClassSerializer(serializers.ModelSerializer):
     class Meta:
         model = Class
         fields = [ 'id', 'name', 'description']
+
+
+class SubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields = ['name', 'description']

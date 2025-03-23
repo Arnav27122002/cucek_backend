@@ -11,7 +11,8 @@ from .serializers import (
     RegisterSerializer,
     LoginSerializer,
     ClassSerializer,
-    UserSerializer
+    UserSerializer,
+    SubjectSerializer
 )
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
@@ -100,6 +101,8 @@ class ClassDetailView(APIView):
 
         # Get the teachers associated with the class
         persons = ClassTeaching.objects.filter(class_taught=class_obj)
+
+        subjects = Subject.objects.filter(class_assigned=class_obj)
         
         teachers = []
         students = []
@@ -116,6 +119,7 @@ class ClassDetailView(APIView):
         # Serialize teacher and student data
         teacher_serializer = UserSerializer(teachers, many=True)
         student_serializer = UserSerializer(students, many=True)
+        subject_serializer = SubjectSerializer(subjects, many=True)
 
         # Serialize class data
         class_serializer = ClassSerializer(class_obj)
@@ -124,7 +128,8 @@ class ClassDetailView(APIView):
         return Response({
             'class': class_serializer.data,
             'teachers': teacher_serializer.data,
-            'students': student_serializer.data
+            'students': student_serializer.data,
+            'subjects': subject_serializer.data
         })
 
 
