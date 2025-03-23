@@ -295,3 +295,36 @@ class ViewExamResultsView(APIView):
             "subject": exam_result.Exam.subject.name,
             "results": results
         }, status=status.HTTP_200_OK)
+
+
+class ViewSubjectExamsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, subject_id):
+        # Get the subject object by subject_id
+        subject = get_object_or_404(Subject, id=subject_id)
+
+        # Get all exams related to this subject
+        exams = Exam.objects.filter(subject=subject)
+
+        # If no exams are found, return a message
+        if not exams:
+            return Response({"message": "No exams found for this subject."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize the exam data
+        exam_data = [
+            {
+                "id": exam.id,
+                "name": exam.name,
+                "description": exam.description,
+                "class_assigned": exam.class_assigned.name,
+                "subject": exam.subject.name,
+            }
+            for exam in exams
+        ]
+
+        # Return the exams for the subject
+        return Response({
+            "subject": subject.name,
+            "exams": exam_data
+        }, status=status.HTTP_200_OK)

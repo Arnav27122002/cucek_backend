@@ -13,7 +13,8 @@ from .views import (
     AddSubjectToClass,
     CreateExamView,
     PublishExamResultsView,
-    ViewExamResultsView
+    ViewExamResultsView,
+    ViewSubjectExamsView
 )
 
 router = DefaultRouter()
@@ -23,6 +24,8 @@ router.register(r'research', ResearchViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('view-exam-results/<int:exam_id>/', ViewExamResultsView.as_view(), name='view_exam_results'),
+    path('view-exam-results/<int:exam_id>/', ViewExamResultsView.as_view(), name='view_exam_results'),
+    path('subjects/<int:subject_id>/exams/', ViewSubjectExamsView.as_view(), name='view_exam_results'),
     path('exams/<int:exam_id>/publish-results/', PublishExamResultsView.as_view(), name='publish_exam_results'),
     path("class/<int:class_id>/<int:subject_id>/add-exam/", CreateExamView.as_view(), name="add_subject"),
     path("class/<int:class_id>/add-subject/", AddSubjectToClass.as_view(), name="add_subject"),
