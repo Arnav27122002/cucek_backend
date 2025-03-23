@@ -57,4 +57,4 @@ class ClassSerializer(serializers.ModelSerializer):
 class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
-        fields = ['name', 'description']
+        fields = ["id" ,'name', 'description']
