@@ -17,7 +17,7 @@ from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
-from .models import Teacher, Class, ClassTeaching, UserRole
+from .models import Teacher, Class, ClassTeaching, UserRole, Subject
 
 
 User = get_user_model()
@@ -156,3 +156,40 @@ class AddStudentToClass(APIView):
         ClassTeaching.objects.create(user=student, class_taught=class_obj, role=UserRole.STUDENT)
 
         return Response({"message": "Student added successfully to the class."}, status=status.HTTP_201_CREATED)
+
+
+
+
+class AddSubjectToClass(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, class_id):
+        # Get the class object
+        class_obj = get_object_or_404(Class, id=class_id)
+
+        # Check if the user is a teacher in this class
+        if not ClassTeaching.objects.filter(user=request.user, class_taught=class_obj, role=UserRole.TEACHER).exists():
+            return Response({"error": "You are not authorized to add subjects to this class."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get the subject data from the request
+        subject_name = request.data.get("name")
+        subject_description = request.data.get("description", "")
+
+        # Validate subject name
+        if not subject_name:
+            return Response({"error": "Subject name is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create a new subject and associate it with the class
+        subject = Subject.objects.create(
+            name=subject_name,
+            description=subject_description,
+            class_assigned=class_obj
+        )
+
+        return Response({
+            "message": "Subject added successfully to the class.",
+            "subject": {
+                "name": subject.name,
+                "description": subject.description
+            }
+        }, status=status.HTTP_201_CREATED)

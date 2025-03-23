@@ -48,16 +48,7 @@ class Class(models.Model):
     def __str__(self):
         return self.name
 
-# ClassEnrollment model to associate students with classes
-# class ClassEnrollment(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     class_enrolled = models.ForeignKey(Class, on_delete=models.CASCADE)
-#     role = models.CharField(max_length=10, choices=UserRole.choices, default=UserRole.STUDENT)
 
-#     def __str__(self):
-#         return f"{self.user.username} in {self.class_enrolled.name} as {self.role}"
-
-# ClassTeaching model to associate teachers with classes
 class ClassTeaching(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     class_taught = models.ForeignKey(Class, on_delete=models.CASCADE)
@@ -65,3 +56,19 @@ class ClassTeaching(models.Model):
 
     def __str__(self):
         return f"{self.user.username} teaching {self.class_taught.name} as {self.role}"
+
+
+class Subject(models.Model):
+    name = models.CharField(max_length=255, verbose_name="Subject Name")
+    description = models.TextField(verbose_name="Subject Description", blank=True)
+    
+    # One-to-many relationship (a subject belongs to one class)
+    class_assigned = models.ForeignKey(
+        'Class', 
+        related_name='subjects', 
+        on_delete=models.CASCADE, 
+        verbose_name="Assigned Class"
+    )
+    
+    def __str__(self):
+        return self.name

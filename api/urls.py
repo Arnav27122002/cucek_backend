@@ -9,7 +9,8 @@ from .views import (
     LogoutView,
     TeacherClassesView,
     ClassDetailView,
-    AddStudentToClass
+    AddStudentToClass,
+    AddSubjectToClass
 )
 
 router = DefaultRouter()
@@ -18,6 +19,7 @@ router.register(r'research', ResearchViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path("class/<int:class_id>/add-subject/", AddSubjectToClass.as_view(), name="add_subject"),
     path("class/<int:class_id>/add-student/", AddStudentToClass.as_view(), name="add_student"),
     path('class/<int:pk>/details/', ClassDetailView.as_view(), name='class_details'),
     path('teacher/classes/', TeacherClassesView.as_view(), name='teacher_classes'),
