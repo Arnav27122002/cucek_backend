@@ -116,3 +116,8 @@ class ExamResult(models.Model):
             "grade": grade
         }
         self.save()
+
+
+class PlacementProfile(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    cgpa = models.IntegerField(null=False, blank=False)

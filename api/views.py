@@ -4,15 +4,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
-from .models import Teacher, Research
+from .models import PlacementProfile, Teacher, Research
 from .serializers import (
+    PlacementProfileSerializer,
     TeacherSerializer,
     ResearchSerializer,
     RegisterSerializer,
     LoginSerializer,
     ClassSerializer,
     UserSerializer,
-    SubjectSerializer
+    SubjectSerializer,
 )
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
@@ -23,13 +24,16 @@ from django.utils.timezone import get_current_timezone
 
 User = get_user_model()
 
+
 class TeacherViewSet(viewsets.ModelViewSet):
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
 
+
 class ResearchViewSet(viewsets.ModelViewSet):
     queryset = Research.objects.all()
     serializer_class = ResearchSerializer
+
 
 class ProtectedView(APIView):
     permission_classes = [IsAuthenticated]
@@ -37,10 +41,12 @@ class ProtectedView(APIView):
     def get(self, request):
         return Response({"message": "This is a protected endpoint!"})
 
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
+
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -50,11 +56,14 @@ class LoginView(APIView):
         if serializer.is_valid():
             user = serializer.validated_data["user"]
             refresh = RefreshToken.for_user(user)
-            return Response({
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            })
+            return Response(
+                {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                }
+            )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
@@ -64,9 +73,13 @@ class LogoutView(APIView):
             refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response({"message": "Successfully logged out."}, status=status.HTTP_205_RESET_CONTENT)
+            return Response(
+                {"message": "Successfully logged out."},
+                status=status.HTTP_205_RESET_CONTENT,
+            )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class TeacherClassesView(APIView):
     permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
@@ -77,7 +90,7 @@ class TeacherClassesView(APIView):
 
         # Get the classes the teacher is teaching using ClassTeaching model
         classes = ClassTeaching.objects.filter(user=teacher)
-        
+
         # Serialize the classes
         class_data = [class_taught.class_taught for class_taught in classes]
         serializer = ClassSerializer(class_data, many=True)
@@ -86,12 +99,15 @@ class TeacherClassesView(APIView):
         response = Response({"classes": serializer.data})
 
         # Add custom headers here
-        response['Referrer-Policy'] = 'strict-origin-when-cross-origin'  # Add the Referrer-Policy header
-        response['Custom-Header'] = 'Value'  # You can add other headers if needed
+        response["Referrer-Policy"] = (
+            "strict-origin-when-cross-origin"  # Add the Referrer-Policy header
+        )
+        response["Custom-Header"] = "Value"  # You can add other headers if needed
 
         # Return the response with custom headers
         return response
-    
+
+
 class ClassDetailView(APIView):
     permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
 
@@ -103,13 +119,13 @@ class ClassDetailView(APIView):
         persons = ClassTeaching.objects.filter(class_taught=class_obj)
 
         subjects = Subject.objects.filter(class_assigned=class_obj)
-        
+
         teachers = []
         students = []
-        
+
         for person in persons:
             print(person.role)
-            
+
             if person.role == UserRole.TEACHER:
                 teachers.append(person.user)
 
@@ -125,13 +141,14 @@ class ClassDetailView(APIView):
         class_serializer = ClassSerializer(class_obj)
 
         # Return the class data with teachers and students
-        return Response({
-            'class': class_serializer.data,
-            'teachers': teacher_serializer.data,
-            'students': student_serializer.data,
-            'subjects': subject_serializer.data
-        })
-
+        return Response(
+            {
+                "class": class_serializer.data,
+                "teachers": teacher_serializer.data,
+                "students": student_serializer.data,
+                "subjects": subject_serializer.data,
+            }
+        )
 
 
 class AddStudentToClass(APIView):
@@ -142,27 +159,40 @@ class AddStudentToClass(APIView):
         class_obj = get_object_or_404(Class, id=class_id)
 
         # Check if the requesting user is a teacher in this class
-        if not ClassTeaching.objects.filter(user=request.user, class_taught=class_obj, role=UserRole.TEACHER).exists():
-            return Response({"error": "You are not authorized to add students to this class."}, status=status.HTTP_403_FORBIDDEN)
+        if not ClassTeaching.objects.filter(
+            user=request.user, class_taught=class_obj, role=UserRole.TEACHER
+        ).exists():
+            return Response(
+                {"error": "You are not authorized to add students to this class."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Get the student ID from request data
         student_id = request.data.get("student_id")
         if not student_id:
-            return Response({"error": "Student ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Student ID is required."}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Get the student object
         student = get_object_or_404(User, id=student_id)
 
         # Check if the user is already enrolled
         if ClassTeaching.objects.filter(user=student, class_taught=class_obj).exists():
-            return Response({"error": "Student is already enrolled in this class."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Student is already enrolled in this class."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Enroll the student
-        ClassTeaching.objects.create(user=student, class_taught=class_obj, role=UserRole.STUDENT)
+        ClassTeaching.objects.create(
+            user=student, class_taught=class_obj, role=UserRole.STUDENT
+        )
 
-        return Response({"message": "Student added successfully to the class."}, status=status.HTTP_201_CREATED)
-
-
+        return Response(
+            {"message": "Student added successfully to the class."},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class AddSubjectToClass(APIView):
@@ -173,8 +203,13 @@ class AddSubjectToClass(APIView):
         class_obj = get_object_or_404(Class, id=class_id)
 
         # Check if the user is a teacher in this class
-        if not ClassTeaching.objects.filter(user=request.user, class_taught=class_obj, role=UserRole.TEACHER).exists():
-            return Response({"error": "You are not authorized to add subjects to this class."}, status=status.HTTP_403_FORBIDDEN)
+        if not ClassTeaching.objects.filter(
+            user=request.user, class_taught=class_obj, role=UserRole.TEACHER
+        ).exists():
+            return Response(
+                {"error": "You are not authorized to add subjects to this class."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Get the subject data from the request
         subject_name = request.data.get("name")
@@ -182,23 +217,23 @@ class AddSubjectToClass(APIView):
 
         # Validate subject name
         if not subject_name:
-            return Response({"error": "Subject name is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Subject name is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Create a new subject and associate it with the class
         subject = Subject.objects.create(
-            name=subject_name,
-            description=subject_description,
-            class_assigned=class_obj
+            name=subject_name, description=subject_description, class_assigned=class_obj
         )
 
-        return Response({
-            "message": "Subject added successfully to the class.",
-            "subject": {
-                "name": subject.name,
-                "description": subject.description
-            }
-        }, status=status.HTTP_201_CREATED)
-
+        return Response(
+            {
+                "message": "Subject added successfully to the class.",
+                "subject": {"name": subject.name, "description": subject.description},
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class CreateExamView(APIView):
@@ -210,8 +245,13 @@ class CreateExamView(APIView):
         subject_obj = get_object_or_404(Subject, id=subject_id)
 
         # Check if the user is a teacher for the specified class
-        if not ClassTeaching.objects.filter(user=request.user, class_taught=class_obj, role=UserRole.TEACHER).exists():
-            return Response({"error": "You are not authorized to create an exam for this class."}, status=status.HTTP_403_FORBIDDEN)
+        if not ClassTeaching.objects.filter(
+            user=request.user, class_taught=class_obj, role=UserRole.TEACHER
+        ).exists():
+            return Response(
+                {"error": "You are not authorized to create an exam for this class."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Get the exam details from the request
         exam_name = request.data.get("name")
@@ -219,7 +259,10 @@ class CreateExamView(APIView):
 
         # Validate input
         if not exam_name:
-            return Response({"error": "Exam name and date are required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Exam name and date are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Parse the exam date into a datetime object
 
@@ -227,17 +270,19 @@ class CreateExamView(APIView):
             name=exam_name,
             description=exam_description,
             class_assigned=class_obj,
-            subject=subject_obj
+            subject=subject_obj,
         )
 
-        return Response({
-            "message": "Exam created successfully.",
-            "exam": {
-                "name": exam.name,
-                "description": exam.description,
-            }
-        }, status=status.HTTP_201_CREATED)
-
+        return Response(
+            {
+                "message": "Exam created successfully.",
+                "exam": {
+                    "name": exam.name,
+                    "description": exam.description,
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class PublishExamResultsView(APIView):
@@ -249,12 +294,18 @@ class PublishExamResultsView(APIView):
 
         # Check if the user is a teacher for this class
         if not exam.class_assigned.teachers.filter(id=request.user.id).exists():
-            return Response({"error": "You are not authorized to publish results for this exam."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "You are not authorized to publish results for this exam."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Get the results data from the request
         results_data = request.data.get("results")
         if not results_data:
-            return Response({"error": "No results data provided."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "No results data provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Create or update the ExamResult for this exam
         exam_result, created = ExamResult.objects.get_or_create(Exam=exam)
@@ -271,8 +322,10 @@ class PublishExamResultsView(APIView):
             # Add the student result to the exam results (in JSON format)
             exam_result.add_student_result(student, marks, grade)
 
-        return Response({"message": "Exam results published successfully!"}, status=status.HTTP_201_CREATED)
-
+        return Response(
+            {"message": "Exam results published successfully!"},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class ViewExamResultsView(APIView):
@@ -287,14 +340,20 @@ class ViewExamResultsView(APIView):
 
         # If there are no results, return a message indicating so
         if not results:
-            return Response({"message": "No results published for this exam yet."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"message": "No results published for this exam yet."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # Return the results in the response
-        return Response({
-            "exam": exam_result.Exam.name,
-            "subject": exam_result.Exam.subject.name,
-            "results": results
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "exam": exam_result.Exam.name,
+                "subject": exam_result.Exam.subject.name,
+                "results": results,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class ViewSubjectExamsView(APIView):
@@ -309,7 +368,10 @@ class ViewSubjectExamsView(APIView):
 
         # If no exams are found, return a message
         if not exams:
-            return Response({"message": "No exams found for this subject."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"message": "No exams found for this subject."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # Serialize the exam data
         exam_data = [
@@ -324,7 +386,41 @@ class ViewSubjectExamsView(APIView):
         ]
 
         # Return the exams for the subject
-        return Response({
-            "subject": subject.name,
-            "exams": exam_data
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {"subject": subject.name, "exams": exam_data}, status=status.HTTP_200_OK
+        )
+
+
+class PlacementProfileView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        profile = get_object_or_404(PlacementProfile, user=request.user)
+        return PlacementProfileSerializer(profile)
+
+    def post(self, request):
+        try:
+            profile = PlacementProfile.objects.get(user=request.user)
+        except PlacementProfile.DoesNotExist:
+            profile = None
+
+        if profile is not None:
+            return Response(
+                {"error": "Profile already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cgpa = request.data.get("cgpa")
+        if cgpa is None or type(cgpa) != float:
+            return Response(
+                {"error": "Invalid or no CGPA provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        place_profile = PlacementProfile.objects.create(user=request.user, cgpa=cgpa)
+        return Response(
+            {"profile": PlacementProfileSerializer(place_profile).data},
+            status=status.HTTP_201_CREATED,
+        )

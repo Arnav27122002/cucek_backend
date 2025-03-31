@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Teacher, Research, Class, Subject
+from .models import PlacementProfile, Teacher, Research, Class, Subject
 
 User = get_user_model()
 
@@ -58,3 +58,10 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ["id" ,'name', 'description']
+
+
+class PlacementProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlacementProfile
+        fields = ["cgpa", "user"]
+        
