@@ -398,7 +398,10 @@ class PlacementProfileView(APIView):
     def get(self, request):
 
         profile = get_object_or_404(PlacementProfile, user=request.user)
-        return PlacementProfileSerializer(profile)
+        return Response(
+            PlacementProfileSerializer(profile).data,
+            status=status.HTTP_200_OK   
+        )
 
     def post(self, request):
         try:
@@ -413,13 +416,21 @@ class PlacementProfileView(APIView):
             )
 
         cgpa = request.data.get("cgpa")
-        if cgpa is None or type(cgpa) != float:
+        percentage_10th = request.data.get("percentage_10th")
+        percentage_12th = request.data.get("percentage_12th")
+        if cgpa is None or percentage_10th is None or percentage_12th is None:
             return Response(
-                {"error": "Invalid or no CGPA provided"},
+                {"error": "Invalid data provided"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        data = {
+            "cgpa": round(cgpa,2),
+            "percentage_10th": round(percentage_10th,4),
+            "percentage_12th": round(percentage_12th,4),
+        }
 
-        place_profile = PlacementProfile.objects.create(user=request.user, cgpa=cgpa)
+        place_profile = PlacementProfile.objects.create(user=request.user, **data)
         return Response(
             {"profile": PlacementProfileSerializer(place_profile).data},
             status=status.HTTP_201_CREATED,

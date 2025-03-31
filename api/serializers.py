@@ -63,5 +63,5 @@ class SubjectSerializer(serializers.ModelSerializer):
 class PlacementProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlacementProfile
-        fields = ["cgpa", "user"]
+        fields = ["cgpa", "user", "percentage_10th", "percentage_12th", "is_placement_coordinator"]
         
