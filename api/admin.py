@@ -8,6 +8,7 @@ from .models import (
     ExamResult,
     Exam,
     PlacementProfile,
+    PlacementApplication
 )
 
 admin.site.register(Class)
@@ -17,3 +18,4 @@ admin.site.register(ExamResult)
 admin.site.register(Exam)
 admin.site.register(PlacementProfile)
 admin.site.register(PlacementCompany)
+admin.site.register(PlacementApplication)

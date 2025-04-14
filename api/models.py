@@ -160,5 +160,5 @@ class PlacementCompany(models.Model):
 
 class PlacementApplication(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    resume = models.FileField(upload_to="resume/")
+    company = models.ForeignKey(PlacementCompany, on_delete=models.CASCADE)
     other_details = models.JSONField()

@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import PlacementCompany, PlacementProfile, Teacher, Research, Class, Subject
+from .models import PlacementCompany, PlacementProfile, Teacher, Research, Class, Subject, PlacementApplication
 
 User = get_user_model()
 
@@ -66,8 +66,42 @@ class PlacementProfileSerializer(serializers.ModelSerializer):
         fields = ["cgpa", "user", "percentage_10th", "percentage_12th", "is_placement_coordinator"]
         
 
-
-class PlacementCompanySerializer(serializers.ModelSerializer):
+class PlacementCompanyAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlacementCompany
-        fields = ["name", "job_description", "min_cgpa", "min_10th", "min_12th", "max_backlogs", "package"]
+        fields = "__all__"
+
+class PlacementCompanySerializer(serializers.ModelSerializer):
+    is_eligible = serializers.BooleanField(read_only=True)
+    applied = serializers.BooleanField(read_only=True)
+    class Meta:
+        model = PlacementCompany
+        fields = ["id" ,"name", "job_description", "min_cgpa", "min_10th", "min_12th", "max_backlogs", "package", "is_eligible", "applied"]
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        profile = self.context.get('profile')
+        user = self.context.get('user')
+        
+        if profile:
+            representation['is_eligible'] = (
+                profile.cgpa >= instance.min_cgpa and
+                profile.percentage_10th >= instance.min_10th and
+                profile.percentage_12th >= instance.min_12th
+                # and profile.backlogs <= instance.max_backlogs
+            )
+
+            representation["applied"] = PlacementApplication.objects.filter(user=user, company=instance).count() > 0
+
+        else:
+            representation['is_eligible'] = False
+            
+        return representation
+    
+class ApplicationSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    company = PlacementCompanySerializer()
+
+    class Meta:
+        model = PlacementApplication
+        fields = ["user", "company", "other_details"]
