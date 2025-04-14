@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import PlacementProfile, Teacher, Research, Class, Subject
+from .models import PlacementCompany, PlacementProfile, Teacher, Research, Class, Subject
 
 User = get_user_model()
 
@@ -65,3 +65,9 @@ class PlacementProfileSerializer(serializers.ModelSerializer):
         model = PlacementProfile
         fields = ["cgpa", "user", "percentage_10th", "percentage_12th", "is_placement_coordinator"]
         
+
+
+class PlacementCompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlacementCompany
+        fields = ["name", "job_description", "min_cgpa", "min_10th", "min_12th", "max_backlogs", "package"]
