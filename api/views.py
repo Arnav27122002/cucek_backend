@@ -4,8 +4,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
-from .models import PlacementProfile, Teacher, Research
+from .models import PlacementApplication, PlacementCompany, PlacementProfile, Teacher, Research
 from .serializers import (
+    PlacementCompanyAdminSerializer,
+    PlacementCompanySerializer,
     PlacementProfileSerializer,
     TeacherSerializer,
     ResearchSerializer,
@@ -14,6 +16,7 @@ from .serializers import (
     ClassSerializer,
     UserSerializer,
     SubjectSerializer,
+    ApplicationSerializer
 )
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
@@ -435,3 +438,100 @@ class PlacementProfileView(APIView):
             {"profile": PlacementProfileSerializer(place_profile).data},
             status=status.HTTP_201_CREATED,
         )
+
+
+class PlacementCompanyView(APIView):
+    def get(self, request):
+        companies = PlacementCompany.objects.all()
+        serializer = PlacementCompanyAdminSerializer(companies, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+
+        placement_profile = PlacementProfile.objects.get(user = request.user)
+        if not placement_profile.is_placement_coordinator:
+            return Response({"detail", "No permission, Only placment coordinator is permitted to add comapany"},status=status.HTTP_403_FORBIDDEN)
+
+        serializer = PlacementCompanySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class PlacementStudentCompanyView(APIView):
+    def get(self, request):
+        # Get the current user's placement profile
+        try:
+            profile = PlacementProfile.objects.get(user=request.user)
+        except PlacementProfile.DoesNotExist:
+            return Response(
+                {"error": "Placement profile not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Filter companies based on eligibility criteria
+        companies = PlacementCompany.objects.all()
+        
+        serializer = PlacementCompanySerializer(companies, many=True, context={"profile": profile, "user": request.user})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class PlacementApplyView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        # Get company ID from request data
+        company_id = request.data.get("company_id")
+        if not company_id:
+            return Response(
+                {"error": "company_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Get the company and profile
+            company = get_object_or_404(PlacementCompany, pk=company_id)
+            profile = PlacementProfile.objects.get(user=request.user)
+            
+            # Check if user already applied
+            if PlacementApplication.objects.filter(user=request.user, company=company).exists():
+                return Response(
+                    {"error": "You have already applied to this company"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check eligibility
+            if not (profile.cgpa >= company.min_cgpa and
+                   profile.percentage_10th >= company.min_10th and
+                   profile.percentage_12th >= company.min_12th):
+                return Response(
+                    {"error": "You do not meet the eligibility criteria"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Create application
+            application_data = PlacementProfileSerializer(profile).data
+            application = PlacementApplication.objects.create(
+                user=request.user,
+                company=company,
+                other_details=application_data
+            )
+
+            print(ApplicationSerializer(application).data)
+
+            return Response(
+                ApplicationSerializer(application).data,
+                status=status.HTTP_201_CREATED
+            )
+            
+        except PlacementProfile.DoesNotExist:
+            return Response(
+                {"error": "Placement profile not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

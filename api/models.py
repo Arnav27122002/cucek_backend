@@ -155,9 +155,10 @@ class PlacementCompany(models.Model):
     min_10th = models.FloatField()
     min_12th = models.FloatField()
     max_backlogs = models.IntegerField()
+    package = models.IntegerField()
 
 
 class PlacementApplication(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    resume = models.FileField(upload_to="resume/")
+    company = models.ForeignKey(PlacementCompany, on_delete=models.CASCADE)
     other_details = models.JSONField()
