@@ -108,6 +108,20 @@ class TeacherClassesView(APIView):
         return response
 
 
+class TeacherCheckView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, class_id):
+        
+        class_obj = get_object_or_404(Class, pk=class_id)
+        teaching = get_object_or_404(ClassTeaching ,class_taught=class_obj, user=request.user)
+        return Response(
+            {
+                "role": teaching.role
+            }
+        )
+        
+
 class ClassDetailView(APIView):
     permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
 
@@ -167,15 +181,15 @@ class AddStudentToClass(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Get the student ID from request data
-        student_id = request.data.get("student_id")
-        if not student_id:
+        # Get the student email from request data
+        student_email = request.data.get("student_email")
+        if not student_email:
             return Response(
-                {"error": "Student ID is required."}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Student email is required."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Get the student object
-        student = get_object_or_404(User, id=student_id)
+        student = get_object_or_404(User, email=student_email)
 
         # Check if the user is already enrolled
         if ClassTeaching.objects.filter(user=student, class_taught=class_obj).exists():
@@ -435,3 +449,4 @@ class PlacementProfileView(APIView):
             {"profile": PlacementProfileSerializer(place_profile).data},
             status=status.HTTP_201_CREATED,
         )
+

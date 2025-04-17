@@ -15,7 +15,8 @@ from .views import (
     CreateExamView,
     PublishExamResultsView,
     ViewExamResultsView,
-    ViewSubjectExamsView
+    ViewSubjectExamsView,
+    TeacherCheckView
 )
 
 router = DefaultRouter()
@@ -24,6 +25,7 @@ router.register(r'research', ResearchViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('class/<int:class_id>/role/', TeacherCheckView.as_view()),
     path('placement/profile/', PlacementProfileView.as_view(), name="placement_views"),
     path('view-exam-results/<int:exam_id>/', ViewExamResultsView.as_view(), name='view_exam_results'),
     path('view-exam-results/<int:exam_id>/', ViewExamResultsView.as_view() , name='view_exam_results'),
