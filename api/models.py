@@ -75,6 +75,7 @@ class ClassTeaching(models.Model):
 
 
 class Subject(models.Model):
+
     name = models.CharField(max_length=255, verbose_name="Subject Name")
     description = models.TextField(verbose_name="Subject Description", blank=True)
 
