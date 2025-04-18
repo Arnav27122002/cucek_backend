@@ -18,7 +18,8 @@ from .views import (
     ViewSubjectExamsView,
     PlacementCompanyView,
     PlacementStudentCompanyView,
-    PlacementApplyView
+    PlacementApplyView,
+    TeacherCheckView
 )
 
 router = DefaultRouter()
@@ -30,6 +31,7 @@ urlpatterns = [
     path('placement/company/', PlacementCompanyView.as_view(), name="placement_company_view"),
     path('placement/student/company/', PlacementStudentCompanyView.as_view(), name="placement_student_view"),
     path('placement/apply/', PlacementApplyView.as_view(), name="placement_apply_view"),
+    path('class/<int:class_id>/role/', TeacherCheckView.as_view()),
     path('placement/profile/', PlacementProfileView.as_view(), name="placement_views"),
     path('view-exam-results/<int:exam_id>/', ViewExamResultsView.as_view(), name='view_exam_results'),
     path('view-exam-results/<int:exam_id>/', ViewExamResultsView.as_view() , name='view_exam_results'),
