@@ -269,7 +269,7 @@ class AddSubjectToClass(APIView):
 
 class CreateExamView(APIView):
     permission_classes = [IsAuthenticated]
-
+    
     def post(self, request, class_id, subject_id):
         # Get the class and subject objects
         class_obj = get_object_or_404(Class, id=class_id)
