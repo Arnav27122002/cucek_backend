@@ -24,6 +24,9 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from .models import Teacher, Class, ClassTeaching, UserRole, Subject, Exam, ExamResult
 from django.utils.timezone import get_current_timezone
+import os
+import requests
+from django.core.files.base import ContentFile
 
 User = get_user_model()
 
@@ -105,7 +108,8 @@ class TeacherClassesView(APIView):
         response["Referrer-Policy"] = (
             "strict-origin-when-cross-origin"  # Add the Referrer-Policy header
         )
-        response["Custom-Header"] = "Value"  # You can add other headers if needed
+        # You can add other headers if needed
+        response["Custom-Header"] = "Value"
 
         # Return the response with custom headers
         return response
@@ -113,31 +117,33 @@ class TeacherClassesView(APIView):
 
 class TeacherCheckView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request, class_id):
-        
+
         class_obj = get_object_or_404(Class, pk=class_id)
-        teaching = get_object_or_404(ClassTeaching ,class_taught=class_obj, user=request.user)
+        teaching = get_object_or_404(
+            ClassTeaching, class_taught=class_obj, user=request.user)
         return Response(
             {
                 "role": teaching.role
             }
         )
-        
+
 
 class TeacherCheckView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request, class_id):
-        
+
         class_obj = get_object_or_404(Class, pk=class_id)
-        teaching = get_object_or_404(ClassTeaching ,class_taught=class_obj, user=request.user)
+        teaching = get_object_or_404(
+            ClassTeaching, class_taught=class_obj, user=request.user)
         return Response(
             {
                 "role": teaching.role
             }
         )
-        
+
 
 class ClassDetailView(APIView):
     permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
@@ -269,7 +275,7 @@ class AddSubjectToClass(APIView):
 
 class CreateExamView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request, class_id, subject_id):
         # Get the class and subject objects
         class_obj = get_object_or_404(Class, id=class_id)
@@ -431,7 +437,7 @@ class PlacementProfileView(APIView):
         profile = get_object_or_404(PlacementProfile, user=request.user)
         return Response(
             PlacementProfileSerializer(profile).data,
-            status=status.HTTP_200_OK   
+            status=status.HTTP_200_OK
         )
 
     def post(self, request):
@@ -454,19 +460,19 @@ class PlacementProfileView(APIView):
                 {"error": "Invalid data provided"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         data = {
-            "cgpa": round(cgpa,2),
-            "percentage_10th": round(percentage_10th,4),
-            "percentage_12th": round(percentage_12th,4),
+            "cgpa": round(cgpa, 2),
+            "percentage_10th": round(percentage_10th, 4),
+            "percentage_12th": round(percentage_12th, 4),
         }
 
-        place_profile = PlacementProfile.objects.create(user=request.user, **data)
+        place_profile = PlacementProfile.objects.create(
+            user=request.user, **data)
         return Response(
             {"profile": PlacementProfileSerializer(place_profile).data},
             status=status.HTTP_201_CREATED,
         )
-
 
 
 class PlacementCompanyView(APIView):
@@ -477,16 +483,16 @@ class PlacementCompanyView(APIView):
 
     def post(self, request):
 
-        placement_profile = PlacementProfile.objects.get(user = request.user)
+        placement_profile = PlacementProfile.objects.get(user=request.user)
         if not placement_profile.is_placement_coordinator:
-            return Response({"detail", "No permission, Only placment coordinator is permitted to add comapany"},status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail", "No permission, Only placment coordinator is permitted to add comapany"}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = PlacementCompanySerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
 
 class PlacementStudentCompanyView(APIView):
     def get(self, request):
@@ -495,20 +501,21 @@ class PlacementStudentCompanyView(APIView):
             profile = PlacementProfile.objects.get(user=request.user)
         except PlacementProfile.DoesNotExist:
             return Response(
-                {"error": "Placement profile not found"}, 
+                {"error": "Placement profile not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Filter companies based on eligibility criteria
         companies = PlacementCompany.objects.all()
-        
-        serializer = PlacementCompanySerializer(companies, many=True, context={"profile": profile, "user": request.user})
+
+        serializer = PlacementCompanySerializer(companies, many=True, context={
+                                                "profile": profile, "user": request.user})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class PlacementApplyView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request):
         # Get company ID from request data
         company_id = request.data.get("company_id")
@@ -517,28 +524,28 @@ class PlacementApplyView(APIView):
                 {"error": "company_id is required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             # Get the company and profile
             company = get_object_or_404(PlacementCompany, pk=company_id)
             profile = PlacementProfile.objects.get(user=request.user)
-            
+
             # Check if user already applied
             if PlacementApplication.objects.filter(user=request.user, company=company).exists():
                 return Response(
                     {"error": "You have already applied to this company"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Check eligibility
             if not (profile.cgpa >= company.min_cgpa and
-                   profile.percentage_10th >= company.min_10th and
-                   profile.percentage_12th >= company.min_12th):
+                    profile.percentage_10th >= company.min_10th and
+                    profile.percentage_12th >= company.min_12th):
                 return Response(
                     {"error": "You do not meet the eligibility criteria"},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             # Create application
             application_data = PlacementProfileSerializer(profile).data
             application = PlacementApplication.objects.create(
@@ -553,7 +560,7 @@ class PlacementApplyView(APIView):
                 ApplicationSerializer(application).data,
                 status=status.HTTP_201_CREATED
             )
-            
+
         except PlacementProfile.DoesNotExist:
             return Response(
                 {"error": "Placement profile not found"},
@@ -564,15 +571,303 @@ class PlacementApplyView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            
-            
+
+
 class PlacementApplicationView(APIView):
-    
-    def get(self, request ,company_id):
+
+    def get(self, request, company_id):
         company = PlacementCompany.objects.get(pk=company_id)
         applications = PlacementApplication.objects.filter(company=company)
         return Response(
             ApplicationSerializer(applications, many=True).data
         )
-        
-            
+
+
+class AddTeacherView(APIView):
+    def get(self, request):
+        teachers_data = {
+            "CSE": [
+                {
+                    "name": "Dr. Preetha Mathew",
+                    "profession": "HOD CS",
+                    "image": "images/PIC & SIGN/CSE/FACULTY PICS/01.jpg",
+                    "profileLink": "?page=12&s=17"
+                },
+                {
+                    "name": "Bindu P K",
+                    "profession": "Associate Professor",
+                    "image": "images/PIC & SIGN/CSE/FACULTY PICS/02.jpg",
+                    "profileLink": "?page=12&s=18"
+                },
+                {
+                    "name": "Manoj Kumar P",
+                    "profession": "Associate Professor",
+                    "image": "images/PIC & SIGN/CSE/FACULTY PICS/03.jpg",
+                    "profileLink": "?page=12&s=20"
+                },
+                {
+                    "name": "Anitha Mary Chacko",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/CSE/FACULTY PICS/16.jpg",
+                    "profileLink": "?page=12&s=141"
+                },
+                {
+                    "name": "Alice Joseph",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/CSE/FACULTY PICS/07.jpg",
+                    "profileLink": "?page=12&s=6"
+                },
+                {
+                    "name": "Aswathy V Shaji",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/CSE/FACULTY PICS/22.jpg",
+                    "profileLink": "?page=12&s=197"
+                },
+                {
+                    "name": "Hafeesa M Habeeb",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/CSE/FACULTY PICS/24.jpg",
+                    "profileLink": "?page=12&s=215"
+                },
+                {
+                    "name": "Amritha Mary Davis",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/CSE/FACULTY PICS/0.jpg",
+                    "profileLink": "?page=12&s=#"
+                }
+            ],
+            "CE": [
+                {
+                    "name": "Dr.Sunilkumar N",
+                    "profession": "HOD CE",
+                    "image": "images/PIC & SIGN/CE/FACULTY PICS/01.jpg",
+                    "profileLink": "?page=12&s=52"
+                },
+                {
+                    "name": "Minimole A",
+                    "profession": "Associate Professor",
+                    "image": "images/PIC & SIGN/CE/FACULTY PICS/02.jpg",
+                    "profileLink": "?page=12&s=15"
+                },
+                {
+                    "name": "Harija K S",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/CE/FACULTY PICS/40.jpg",
+                    "profileLink": "?page=12&s=205"
+                },
+                {
+                    "name": "Prajeesha M P",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/CE/FACULTY PICS/0.jpg",
+                    "profileLink": "?page=12&s=#"
+                },
+                {
+                    "name": "Aimy Rose Joy",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/CE/FACULTY PICS/0.jpg",
+                    "profileLink": "?page=12&s=#"
+                }
+            ],
+            "ECE": [
+                {
+                    "name": "Dr.Anilkumar K K",
+                    "profession": "HOD ECE",
+                    "image": "images/PIC & SIGN/ECE/FACULTY PICS/02.jpg",
+                    "profileLink": "?page=12&s=26"
+                },
+                {
+                    "name": "Dr. Manoj V J",
+                    "profession": "Professor",
+                    "image": "images/PIC & SIGN/ECE/FACULTY PICS/01.jpg",
+                    "profileLink": "?page=12&s=199"
+                },
+                {
+                    "name": "Nishanth R",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/ECE/FACULTY PICS/24.jpg",
+                    "profileLink": "?page=12&s=203"
+                },
+                {
+                    "name": "Akhila L",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/ECE/FACULTY PICS/05.jpg",
+                    "profileLink": "?page=12&s=67"
+                },
+                {
+                    "name": "Abin John Joseph",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/ECE/FACULTY PICS/06.jpg",
+                    "profileLink": "?page=12&s=21"
+                },
+                {
+                    "name": "Malini Mohan",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/ECE/FACULTY PICS/19.jpg",
+                    "profileLink": "?page=12&s=146"
+                },
+                {
+                    "name": "Sujith P S",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/ECE/FACULTY PICS/21.jpg",
+                    "profileLink": "?page=12&s=200"
+                },
+                {
+                    "name": "Jaya Sukes",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/ECE/FACULTY PICS/26.jpg",
+                    "profileLink": "?page=12&s=214"
+                }
+            ],
+            "EEE": [
+                {
+                    "name": "Dr.Shiny Paul",
+                    "profession": "HOD EEE",
+                    "image": "images/PIC & SIGN/EEE/FACULTY PICS/02.jpg",
+                    "profileLink": "?page=12&s=29"
+                },
+                {
+                    "name": "Priya R Krishnan",
+                    "profession": "Associate Professor",
+                    "image": "images/PIC & SIGN/EEE/FACULTY PICS/04.jpg",
+                    "profileLink": "?page=12&s=27"
+                },
+                {
+                    "name": "Sajan Joseph",
+                    "profession": "Associate Professor",
+                    "image": "images/PIC & SIGN/EEE/FACULTY PICS/03.jpg",
+                    "profileLink": "?page=12&s=30"
+                },
+                {
+                    "name": "Nakul Sasikumar",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/EEE/FACULTY PICS/30.jpg",
+                    "profileLink": "?page=12&s=156"
+                },
+                {
+                    "name": "Raji Reghunanthan",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/EEE/FACULTY PICS/36.jpg",
+                    "profileLink": "?page=12&s=209"
+                }
+            ],
+            "IT": [
+                {
+                    "name": "Dr.Jabir K V T",
+                    "profession": "HOD IT",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/02.jpg",
+                    "profileLink": "?page=12&s=43"
+                },
+                {
+                    "name": "Dr.Jayaprabha P",
+                    "profession": "Associate Professor",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/01.jpg",
+                    "profileLink": "?page=12&s=42"
+                },
+                {
+                    "name": "Dr.Harikrishnan D",
+                    "profession": "Professor",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/03.jpg",
+                    "profileLink": "?page=12&s=44"
+                },
+                {
+                    "name": "Nidhin Sani",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/05.jpg",
+                    "profileLink": "?page=12&s=40"
+                },
+                {
+                    "name": "Vineeth M V",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/16.jpg",
+                    "profileLink": "?page=12&s=188"
+                },
+                {
+                    "name": "Santhikrishna M S",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/17.jpg",
+                    "profileLink": "?page=12&s=189"
+                },
+                {
+                    "name": "Athira K R",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/21.jpg",
+                    "profileLink": "?page=12&s=223"
+                },
+                {
+                    "name": "Vidya Muraleedharan",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/22.jpg",
+                    "profileLink": "?page=12&s=#"
+                },
+                {
+                    "name": "Jesna A A",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/23.jpg",
+                    "profileLink": "?page=12&s=#"
+                },
+                {
+                    "name": "Keethimol P P",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/IT/FACULTY PICS/20.jpg",
+                    "profileLink": "?page=12&s=222"
+                }
+            ],
+            "MCA": [
+                {
+                    "name": "Deepa Nair",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/MCA/FACULTY PICS/01.jpg",
+                    "profileLink": "?page=12&s=45"
+                },
+                {
+                    "name": "Radhika B",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/MCA/FACULTY PICS/09.jpg",
+                    "profileLink": "?page=12&s=75"
+                },
+                {
+                    "name": "Anoop S",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/MCA/FACULTY PICS/19.jpg",
+                    "profileLink": "?page=12&s=191"
+                },
+                {
+                    "name": "Sanjana",
+                    "profession": "Assistant Professor",
+                    "image": "images/PIC & SIGN/MCA/FACULTY PICS/0.jpg",
+                    "profileLink": "?page=12&s=#"
+                }
+            ]
+        }
+
+        for branch, teachers in teachers_data.items():
+            for data in teachers:
+                image_url = f"https://cucek.cusat.ac.in/{data['image']}"
+                image_name = os.path.basename(data["image"]).replace(
+                    " ", "_")  # Clean image name
+
+                try:
+                    response = requests.get(image_url)
+                    if response.status_code == 200:
+                        image_file = ContentFile(
+                            response.content, name=image_name)
+
+                        Teacher.objects.create(
+                            name=data["name"],
+                            profession=data["profession"],
+                            about="",
+                            qualifications="M.Tech",
+                            experience=0,
+                            branch=branch,  # Use the branch dynamically here
+                            projects="",
+                            image=image_file,  # Saving image to the model field
+                            path=data["profileLink"]
+                        )
+                    else:
+                        print(
+                            f"Failed to download image: {image_url} (Status {response.status_code})")
+
+                except Exception as e:
+                    print(f"Error downloading image {image_url}: {e}")
+
+        return Response({"message": "Teachers added successfully."})
